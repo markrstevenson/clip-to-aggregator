@@ -46,21 +46,36 @@ function clipFilename(ts) {
 
 // JSON -> base64 data URL (works inside a popup without Blob URLs).
 function toDataUrl(jsonStr) {
-  const b64 = btoa(unescape(encodeURIComponent(jsonStr)));
+  const bytes = new TextEncoder().encode(jsonStr);
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  const b64 = btoa(binary);
   return `data:application/json;base64,${b64}`;
 }
 
 async function saveClip() {
+  const title = titleEl.value.trim();
+  const highlight = selectionEl.value.trim();
+  const note = noteEl.value.trim();
+
+  // Don't write empty clips into the inbox.
+  if (!title && !highlight && !note) {
+    statusEl.style.color = "#b00020";
+    statusEl.textContent = "Add a title, highlight, or note first.";
+    return;
+  }
+
   saveBtn.disabled = true;
+  statusEl.style.color = "#1a7f37";
   statusEl.textContent = "Saving…";
 
   const now = new Date().toISOString();
   const clip = {
-    title: titleEl.value.trim(),
+    title,
     url: pageUrl,
     category: categoryEl.value,
-    note: noteEl.value.trim(),
-    highlight: selectionEl.value.trim(),
+    note,
+    highlight,
     clipped_at: now,
   };
 
@@ -83,4 +98,7 @@ async function saveClip() {
 }
 
 saveBtn.addEventListener("click", saveClip);
-init();
+init().catch((e) => {
+  statusEl.style.color = "#b00020";
+  statusEl.textContent = "Couldn't read the active tab: " + e.message;
+});

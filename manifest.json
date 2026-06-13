@@ -2,10 +2,20 @@
   "manifest_version": 3,
   "name": "Clip to Aggregator",
   "version": "1.0.0",
-  "description": "Mark defence/tech news while you read. Each clip is saved into your Aggregator inbox for the weekly digest.",
+  "description": "Clip articles and pages as you read. Each clip is saved as a JSON file into your inbox folder, ready for whatever processes it.",
   "permissions": ["activeTab", "scripting", "downloads"],
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
   "action": {
     "default_title": "Clip to Aggregator",
-    "default_popup": "popup.html"
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
   }
 }

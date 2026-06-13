@@ -8,27 +8,32 @@ or an AI assistant watching the folder.
 Nothing leaves your machine: no servers, no accounts, no tracking. The only
 "transport" is a JSON file written into your own download folder.
 
-> Originally built to feed a weekly defence-tech news digest, but the format is
-> generic — clip anything, point the inbox at any folder.
+> The format is deliberately generic — clip anything, point the inbox at any
+> folder, and process it however you like.
 
 ## What it captures
 - Page title and URL (auto-filled)
 - Any text you've highlighted on the page (auto-captured)
-- A category (Air / Land / Sea / Space / Logistics / Startup / Other)
+- A category (News / Technology / Business / Science / Culture / Opinion / Other)
 - An optional note on why it matters
 
 ## One-time setup (about 2 minutes)
+
+> ⚠️ **This step is required — the extension won't work without it.** Clips are
+> saved through Chrome's download mechanism, so they land wherever Chrome's
+> download location points. If that's not set to your collection folder, your
+> clips will end up in your normal Downloads folder instead.
 
 **1. Point Chrome's downloads at the folder you want to collect clips in**
 
 Chrome → Settings → Downloads → "Location" → choose your collection folder,
 for example:
 
-`~/Documents/news-inbox`   (or any folder you like)
+`~/Documents/clip-inbox`   (or any folder you like)
 
-Leave "Ask where to save each file before downloading" **off**. (Clips are tiny
-JSON files saved silently into an `inbox/` subfolder, so they won't clutter your
-normal downloads.)
+Leave "Ask where to save each file before downloading" **off** — otherwise
+Chrome prompts on every clip. (Clips are tiny JSON files saved silently into an
+`inbox/` subfolder, so they won't clutter your normal downloads.)
 
 **2. Load the extension**
 
@@ -52,11 +57,11 @@ Each clip is a single JSON object:
 
 ```json
 {
-  "title": "Europe's largest drone testing centre opens in Swindon - GOV.UK",
-  "url": "https://www.gov.uk/government/news/...",
-  "category": "Air",
-  "note": "new UK uncrewed-systems test facility",
-  "highlight": "The new Uncrewed Systems Centre (USC)...",
+  "title": "How a small team shipped a feature in a weekend - Example Blog",
+  "url": "https://example.com/blog/...",
+  "category": "Technology",
+  "note": "useful pattern for small-team delivery",
+  "highlight": "They cut scope aggressively and shipped...",
   "clipped_at": "2026-06-13T22:02:16.003Z"
 }
 ```
