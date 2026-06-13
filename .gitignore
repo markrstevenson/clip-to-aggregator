@@ -1,0 +1,12 @@
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+
+# Any local clip data that might end up in the repo folder
+inbox/
+archive/
+*.crx
+*.pem
