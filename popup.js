@@ -12,16 +12,37 @@ const categoryEl = document.getElementById("category");
 const saveBtn = document.getElementById("save");
 const statusEl = document.getElementById("status");
 
+// Sanity cap on the highlighted passage. Clips are written as a real file
+// (Blob), so this guards against a runaway selection rather than a hard
+// transport limit.
+const MAX_HIGHLIGHT = 100000;
+
 let pageUrl = "";
 
-// Pre-fill from the active tab, and pull the current text selection.
+// Persist the in-progress form so highlighting — which closes the popup — doesn't
+// wipe what you've typed. Scoped to the page URL so drafts don't leak across tabs.
+function saveDraft() {
+  chrome.storage.session.set({
+    draft: {
+      url: pageUrl,
+      title: titleEl.value,
+      category: categoryEl.value,
+      note: noteEl.value,
+      highlight: selectionEl.value,
+    },
+  });
+}
+
+// Pre-fill from the active tab, restore any saved draft, and pull the selection.
 async function init() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab) return;
 
-  titleEl.value = tab.title || "";
   pageUrl = tab.url || "";
   urlEl.textContent = pageUrl;
+
+  let title = tab.title || "";
+  let selection = "";
 
   // Grab highlighted text from the page (best-effort; some pages block injection).
   try {
@@ -29,10 +50,29 @@ async function init() {
       target: { tabId: tab.id },
       func: () => window.getSelection().toString(),
     });
-    if (result && result.result) selectionEl.value = result.result.trim();
+    if (result && result.result) selection = result.result.trim();
   } catch (e) {
     // e.g. chrome:// pages or PDFs — silently skip.
   }
+
+  // Restore a saved draft for this page, if any. A fresh page selection wins
+  // over the saved one; everything else the user typed is restored.
+  const { draft } = await chrome.storage.session.get("draft");
+  if (draft && draft.url === pageUrl) {
+    if (draft.title) title = draft.title;
+    if (draft.category) categoryEl.value = draft.category;
+    if (draft.note) noteEl.value = draft.note;
+    if (!selection && draft.highlight) selection = draft.highlight;
+  }
+
+  titleEl.value = title;
+  selectionEl.value = selection;
+
+  // Autosave on every edit so nothing is lost when the popup closes.
+  titleEl.addEventListener("input", saveDraft);
+  noteEl.addEventListener("input", saveDraft);
+  selectionEl.addEventListener("input", saveDraft);
+  categoryEl.addEventListener("change", saveDraft);
 }
 
 // Build a safe, unique filename from the timestamp.
@@ -44,18 +84,28 @@ function clipFilename(ts) {
   return `inbox/clip-${stamp}.json`;
 }
 
-// JSON -> base64 data URL (works inside a popup without Blob URLs).
-function toDataUrl(jsonStr) {
-  const bytes = new TextEncoder().encode(jsonStr);
-  let binary = "";
-  for (const byte of bytes) binary += String.fromCharCode(byte);
-  const b64 = btoa(binary);
-  return `data:application/json;base64,${b64}`;
+// Hand Chrome the JSON as a real file via a Blob URL. (Encoding the whole clip
+// into a data: URL hits Chrome's data-URL size limit on large selections.)
+function downloadJson(jsonStr, filename) {
+  const blob = new Blob([jsonStr], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  return chrome.downloads
+    .download({ url, filename, saveAs: false, conflictAction: "uniquify" })
+    .then((id) => {
+      // Release the blob once the download has landed on disk.
+      chrome.downloads.onChanged.addListener(function handler(delta) {
+        if (delta.id === id && delta.state && delta.state.current === "complete") {
+          URL.revokeObjectURL(url);
+          chrome.downloads.onChanged.removeListener(handler);
+        }
+      });
+      return id;
+    });
 }
 
 async function saveClip() {
   const title = titleEl.value.trim();
-  const highlight = selectionEl.value.trim();
+  let highlight = selectionEl.value.trim();
   const note = noteEl.value.trim();
 
   // Don't write empty clips into the inbox.
@@ -63,6 +113,13 @@ async function saveClip() {
     statusEl.style.color = "#b00020";
     statusEl.textContent = "Add a title, highlight, or note first.";
     return;
+  }
+
+  // Cap a pathological selection so a clip can't balloon unexpectedly.
+  let truncated = false;
+  if (highlight.length > MAX_HIGHLIGHT) {
+    highlight = highlight.slice(0, MAX_HIGHLIGHT);
+    truncated = true;
   }
 
   saveBtn.disabled = true;
@@ -78,17 +135,16 @@ async function saveClip() {
     highlight,
     clipped_at: now,
   };
+  if (truncated) clip.highlight_truncated = true;
 
   const jsonStr = JSON.stringify(clip, null, 2);
 
   try {
-    await chrome.downloads.download({
-      url: toDataUrl(jsonStr),
-      filename: clipFilename(now),
-      saveAs: false,
-      conflictAction: "uniquify",
-    });
-    statusEl.textContent = "✓ Clipped to inbox";
+    await downloadJson(jsonStr, clipFilename(now));
+    await chrome.storage.session.remove("draft");
+    statusEl.textContent = truncated
+      ? "✓ Clipped (highlight truncated)"
+      : "✓ Clipped to inbox";
     setTimeout(() => window.close(), 700);
   } catch (e) {
     statusEl.style.color = "#b00020";
