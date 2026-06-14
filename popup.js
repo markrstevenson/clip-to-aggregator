@@ -18,6 +18,7 @@ const statusEl = document.getElementById("status");
 const MAX_HIGHLIGHT = 100000;
 
 let pageUrl = "";
+let favicon = "";
 
 // Persist the in-progress form so highlighting — which closes the popup — doesn't
 // wipe what you've typed. Scoped to the page URL so drafts don't leak across tabs.
@@ -39,6 +40,7 @@ async function init() {
   if (!tab) return;
 
   pageUrl = tab.url || "";
+  favicon = tab.favIconUrl || "";
   urlEl.textContent = pageUrl;
 
   let title = tab.title || "";
@@ -75,13 +77,25 @@ async function init() {
   categoryEl.addEventListener("change", saveDraft);
 }
 
-// Build a safe, unique filename from the timestamp.
-function clipFilename(ts) {
+// Turn a title into a filesystem-safe slug: ASCII alphanumerics only, dashes
+// collapsed, length-capped, with a fallback so the prefix is never empty.
+function slugify(s) {
+  const slug = s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 50)
+    .replace(/-+$/g, "");
+  return slug || "clip";
+}
+
+// Build a safe, unique, browsable filename: "<title-slug>_<timestamp>.json".
+function clipFilename(title, ts) {
   const stamp = ts
     .replace(/[:.]/g, "-")
     .replace("T", "_")
     .replace("Z", "");
-  return `inbox/clip-${stamp}.json`;
+  return `inbox/${slugify(title)}_${stamp}.json`;
 }
 
 // Hand Chrome the JSON as a real file via a Blob URL. (Encoding the whole clip
@@ -130,6 +144,7 @@ async function saveClip() {
   const clip = {
     title,
     url: pageUrl,
+    favicon,
     category: categoryEl.value,
     note,
     highlight,
@@ -140,7 +155,7 @@ async function saveClip() {
   const jsonStr = JSON.stringify(clip, null, 2);
 
   try {
-    await downloadJson(jsonStr, clipFilename(now));
+    await downloadJson(jsonStr, clipFilename(title, now));
     await chrome.storage.session.remove("draft");
     statusEl.textContent = truncated
       ? "✓ Clipped (highlight truncated)"

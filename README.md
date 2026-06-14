@@ -50,7 +50,8 @@ Done.
 2. Click the **Clip to Aggregator** toolbar button.
 3. Tweak the title, pick a category, add a note → **Save clip**.
 
-The clip lands in `<your-folder>/inbox/` as `clip-<timestamp>.json`.
+The clip lands in `<your-folder>/inbox/` as `<title-slug>_<timestamp>.json` —
+a title-based name so clips are browsable without opening them.
 
 ## Clip format
 Each clip is a single JSON object:
@@ -59,6 +60,7 @@ Each clip is a single JSON object:
 {
   "title": "How a small team shipped a feature in a weekend - Example Blog",
   "url": "https://example.com/blog/...",
+  "favicon": "https://example.com/favicon.ico",
   "category": "Technology",
   "note": "useful pattern for small-team delivery",
   "highlight": "They cut scope aggressively and shipped...",
